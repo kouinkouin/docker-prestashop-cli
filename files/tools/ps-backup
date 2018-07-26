@@ -1,0 +1,51 @@
+#!/usr/bin/env php
+<?php
+
+$root_dir = $dump_dir = '';
+
+$args = $argv;
+array_shift($args);
+
+do {
+    $arg = array_shift($args);
+    switch ($arg) {
+        case '--root':
+            $root_dir = realpath(array_shift($args));
+            break;
+    }
+} while ($arg !== null);
+
+if (empty($root_dir)) {
+    echo 'Usage: ', $argv[0], ' --root root_directory', PHP_EOL, 'Bye!', PHP_EOL;
+    exit(1);
+}
+
+$dump_dir = $root_dir . '/build/database';
+if (!is_dir($dump_dir)) {
+    mkdir($dump_dir, 0700, true);
+}
+$dump_dir = realpath($dump_dir);
+
+echo 'Removing all dump files... ';
+$files = glob($dump_dir . '/*.dump.sql');
+foreach ($files as $file) {
+    unlink($file);
+}
+echo 'done', PHP_EOL;
+
+require_once 'common.php';
+
+$tables = Db::getInstance()->executeS('SHOW TABLES');
+foreach ($tables as $table) {
+    $table = current($table);
+    echo $table, '...', PHP_EOL;
+    $shell_query = sprintf('mysqldump -h %s -u %s -p%s %s %s --skip-add-locks --skip-disable-keys --skip-comments > %s',
+        _DB_SERVER_,
+        _DB_USER_,
+        _DB_PASSWD_,
+        _DB_NAME_,
+        $table,
+        $dump_dir . '/' . $table . '.dump.sql'
+    );
+    shell_exec($shell_query);
+}

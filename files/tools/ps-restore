@@ -1,0 +1,111 @@
+#!/usr/bin/env php
+<?php
+
+$root_dir = $dump_dir = '';
+$domain = array();
+$restore_db = true;
+$use_ssl = false;
+
+$args = $argv;
+array_shift($args);
+
+do {
+    $arg = array_shift($args);
+    switch ($arg) {
+        case '--root':
+            $root_dir = realpath(array_shift($args));
+            break;
+        case '--domain':
+            $domain[] = array_shift($args);
+            break;
+        case '--keep-db':
+            $restore_db = false;
+            break;
+        case '--use-ssl':
+            $use_ssl = true;
+            break;
+    }
+} while ($arg !== null);
+
+if (empty($root_dir) || empty($domain)) {
+    echo 'Usage: ', $argv[0], ' [--keep-db] [--use-ssl] --root root_directory --domain myprestashop.antidot.be [--domain mysecondshop.antidot.be]', PHP_EOL, 'Bye!', PHP_EOL;
+    exit(1);
+}
+
+$dump_dir = $root_dir . '/build/database';
+if (!is_dir($dump_dir)) {
+    mkdir($dump_dir, 0700, true);
+}
+$dump_dir = realpath($dump_dir);
+
+require_once 'common.php';
+
+if ($restore_db) {
+    $files = glob($dump_dir.'/*.dump.sql');
+
+    if (empty($files)) {
+        echo 'Dump files not found in ', $dump_dir, PHP_EOL;
+        exit(1);
+    }
+
+    echo count($files), ' files will be inserted', PHP_EOL;
+
+    echo 'Dropping all tables... ';
+
+    $tables = Db::getInstance()->executeS('SHOW TABLES');
+    foreach ($tables as $table) {
+        Db::getInstance()->query('DROP TABLE '.current($table));
+    }
+    echo 'done', PHP_EOL;
+
+    foreach ($files as $file) {
+        echo $file, '... ';
+        if (Db::getInstance()->query(file_get_contents($file))) {
+            echo 'ok', PHP_EOL;
+        } else {
+            echo 'KO !', PHP_EOL;
+        }
+    }
+}
+
+/**
+ * Change the shop domains
+ */
+$domainId = 0;
+foreach ($domain as $domainUrl) {
+    do {
+        $domainId++;
+        $shop = new ShopUrlCore($domainId);
+    } while (empty($shop->id_shop));
+
+    printf('Shop %d: %s'.PHP_EOL, $domainId, $domainUrl);
+
+    $shop->domain = $shop->domain_ssl = $domainUrl;
+    $shop->update();
+
+    ConfigurationCore::updateValue('PS_SHOP_DOMAIN', $domain, false, 1, $domainId);
+    ConfigurationCore::updateValue('PS_SHOP_DOMAIN_SSL', $domain, false, 1, $domainId);
+
+    /** Change SSL presence */
+    ConfigurationCore::updateValue('PS_SSL_ENABLED', $use_ssl, false, 1, $domainId);
+    ConfigurationCore::updateValue('PS_SSL_ENABLED_EVERYWHERE', $use_ssl, false, 1, $domainId);
+}
+
+/**
+ * Create img/tmp if it does not exist
+ */
+if ( ! is_dir($root_dir.'/img/tmp')) {
+    mkdir($root_dir.'/img/tmp', 0775, true);
+}
+if ( ! is_dir($root_dir.'/img/c')) {
+    mkdir($root_dir.'/img/c', 0775, true);
+}
+
+/**
+ * Initialise cached files for modules
+ */
+
+echo 'Clean FS cache... ';
+CacheFs::deleteCacheDirectory();
+echo 'ok', PHP_EOL;
+
