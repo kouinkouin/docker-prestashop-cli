@@ -37,7 +37,7 @@ do {
     }
 } while ($arg !== null);
 
-if (empty($rootPath) || empty($domain) || $showUsage) {
+if (empty($rootPath) || $showUsage) {
     echo 'Usage: ', $argv[0], ' [--keep-db|--restore-db] [--use-ssl] --root root_directory --domain myprestashop.antidot.be [--domain mysecondshop.antidot.be]', PHP_EOL, 'Bye!', PHP_EOL;
     exit(1);
 }
