@@ -102,6 +102,33 @@ foreach ($domain as $domainUrl) {
 }
 
 /**
+ * Reinstalling overrides for all modules
+ */
+foreach (Module::getModulesInstalled() as $moduleRow) {
+    $module = Module::getInstanceByName($moduleRow['name']);
+    if ($module->active && strtolower($module->author) === 'the fabrik') {
+        printf("  Resetting '%s'...\n", $module->displayName);
+
+        echo '    - Overrides...';
+        $result = $module->uninstallOverrides();
+        $result &= $module->installOverrides();
+        echo $result ? 'ok' : 'KO!', PHP_EOL;
+
+        echo '    - Hooks...';
+        $sql = 'SELECT id_hook FROM `' . _DB_PREFIX_ . 'hook_module` WHERE `id_module` = ' . (int)$module->id;
+        $hookResult = Db::getInstance()->executeS($sql);
+        $result = true;
+        foreach ($hookResult as $hookRow) {
+            $result &= $module->unregisterHook($hookRow['id_hook']);
+        }
+        if (method_exists($module, 'reset')) {
+            $result &= $module->reset();
+        }
+        echo $result ? 'ok' : 'KO!', PHP_EOL;
+    }
+}
+
+/**
  * Create img/* if it does not exist
  */
 foreach (['/img/tmp', '/img/tmp'] as $folder) {
@@ -118,3 +145,6 @@ echo 'Clean FS cache... ';
 CacheFs::deleteCacheDirectory();
 echo 'ok', PHP_EOL;
 
+echo 'Generate class index... ';
+Autoload::getInstance()->generateIndex();
+echo 'ok', PHP_EOL;
