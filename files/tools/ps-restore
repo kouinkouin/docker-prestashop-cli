@@ -1,10 +1,10 @@
 #!/usr/bin/env php
 <?php
 
-$root_dir = $dump_dir = '';
-$domain = array();
-$restore_db = true;
-$use_ssl = false;
+$rootPath = $dumpPath = '';
+$domain = [];
+$restoreDb = true;
+$useSsl = false;
 
 $args = $argv;
 array_shift($args);
@@ -13,38 +13,38 @@ do {
     $arg = array_shift($args);
     switch ($arg) {
         case '--root':
-            $root_dir = realpath(array_shift($args));
+            $rootPath = realpath(array_shift($args));
             break;
         case '--domain':
             $domain[] = array_shift($args);
             break;
         case '--keep-db':
-            $restore_db = false;
+            $restoreDb = false;
             break;
         case '--use-ssl':
-            $use_ssl = true;
+            $useSsl = true;
             break;
     }
 } while ($arg !== null);
 
-if (empty($root_dir) || empty($domain)) {
+if (empty($rootPath) || empty($domain)) {
     echo 'Usage: ', $argv[0], ' [--keep-db] [--use-ssl] --root root_directory --domain myprestashop.antidot.be [--domain mysecondshop.antidot.be]', PHP_EOL, 'Bye!', PHP_EOL;
     exit(1);
 }
 
-$dump_dir = $root_dir . '/build/database';
-if (!is_dir($dump_dir)) {
-    mkdir($dump_dir, 0700, true);
+$dumpPath = $rootPath . '/build/database';
+if (!is_dir($dumpPath)) {
+    mkdir($dumpPath, 0700, true);
 }
-$dump_dir = realpath($dump_dir);
+$dumpPath = realpath($dumpPath);
 
 require_once 'common.php';
 
-if ($restore_db) {
-    $files = glob($dump_dir.'/*.dump.sql');
+if ($restoreDb) {
+    $files = glob($dumpPath . '/*.dump.sql');
 
     if (empty($files)) {
-        echo 'Dump files not found in ', $dump_dir, PHP_EOL;
+        echo 'Dump files not found in ', $dumpPath, PHP_EOL;
         exit(1);
     }
 
@@ -54,7 +54,7 @@ if ($restore_db) {
 
     $tables = Db::getInstance()->executeS('SHOW TABLES');
     foreach ($tables as $table) {
-        Db::getInstance()->query('DROP TABLE '.current($table));
+        Db::getInstance()->query('DROP TABLE ' . current($table));
     }
     echo 'done', PHP_EOL;
 
@@ -78,7 +78,7 @@ foreach ($domain as $domainUrl) {
         $shop = new ShopUrlCore($domainId);
     } while (empty($shop->id_shop));
 
-    printf('Shop %d: %s'.PHP_EOL, $domainId, $domainUrl);
+    printf('Shop %d: %s' . PHP_EOL, $domainId, $domainUrl);
 
     $shop->domain = $shop->domain_ssl = $domainUrl;
     $shop->update();
@@ -87,18 +87,17 @@ foreach ($domain as $domainUrl) {
     ConfigurationCore::updateValue('PS_SHOP_DOMAIN_SSL', $domain, false, 1, $domainId);
 
     /** Change SSL presence */
-    ConfigurationCore::updateValue('PS_SSL_ENABLED', $use_ssl, false, 1, $domainId);
-    ConfigurationCore::updateValue('PS_SSL_ENABLED_EVERYWHERE', $use_ssl, false, 1, $domainId);
+    ConfigurationCore::updateValue('PS_SSL_ENABLED', $useSsl, false, 1, $domainId);
+    ConfigurationCore::updateValue('PS_SSL_ENABLED_EVERYWHERE', $useSsl, false, 1, $domainId);
 }
 
 /**
- * Create img/tmp if it does not exist
+ * Create img/* if it does not exist
  */
-if ( ! is_dir($root_dir.'/img/tmp')) {
-    mkdir($root_dir.'/img/tmp', 0775, true);
-}
-if ( ! is_dir($root_dir.'/img/c')) {
-    mkdir($root_dir.'/img/c', 0775, true);
+foreach (['/img/tmp', '/img/tmp'] as $folder) {
+    if (!is_dir($rootPath . $folder)) {
+        mkdir($rootPath . $folder, 0775, true);
+    }
 }
 
 /**
