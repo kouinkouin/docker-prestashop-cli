@@ -1,9 +1,10 @@
 #!/usr/bin/env php
 <?php
 
+$showUsage = false;
 $rootPath = $dumpPath = '';
 $domain = [];
-$restoreDb = true;
+$restoreDb = false;
 $useSsl = false;
 
 $args = $argv;
@@ -20,15 +21,24 @@ do {
             break;
         case '--keep-db':
             $restoreDb = false;
+            echo '  [deprecated] --keep-db is deprecated (DB is not restored by default)', PHP_EOL;
+            $showUsage = true;
+            break;
+        case '--restore-db':
+            $restoreDb = true;
             break;
         case '--use-ssl':
             $useSsl = true;
             break;
+        case '-h':
+        case '--help':
+            $showUsage = true;
+            break;
     }
 } while ($arg !== null);
 
-if (empty($rootPath) || empty($domain)) {
-    echo 'Usage: ', $argv[0], ' [--keep-db] [--use-ssl] --root root_directory --domain myprestashop.antidot.be [--domain mysecondshop.antidot.be]', PHP_EOL, 'Bye!', PHP_EOL;
+if (empty($rootPath) || empty($domain) || $showUsage) {
+    echo 'Usage: ', $argv[0], ' [--keep-db|--restore-db] [--use-ssl] --root root_directory --domain myprestashop.antidot.be [--domain mysecondshop.antidot.be]', PHP_EOL, 'Bye!', PHP_EOL;
     exit(1);
 }
 
